@@ -1,4 +1,5 @@
 # Hapi Bookshelf Serializer
+[![npm version](https://badge.fury.io/js/hapi-bookshelf-serializer.svg)](http://badge.fury.io/js/hapi-bookshelf-serializer)
 [![Build Status](https://travis-ci.org/lob/hapi-bookshelf-serializer.svg)](https://travis-ci.org/lob/hapi-bookshelf-serializer)
 [![Coverage Status](https://coveralls.io/repos/lob/hapi-bookshelf-serializer/badge.svg?branch=master)](https://coveralls.io/r/lob/hapi-bookshelf-serializer?branch=master)
 
