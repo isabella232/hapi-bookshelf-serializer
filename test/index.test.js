@@ -16,6 +16,11 @@ var TestModels  = bookshelf.Collection.extend({
   model: TestModel
 });
 
+var ContextModel  = bookshelf.Model.extend({
+  tableName: 'contextModels',
+  serializer: 'contextModel'
+});
+
 describe('serializer plugin', function () {
   describe('initialization', function () {
     it('should fail to load with bad schema', function () {
@@ -137,6 +142,32 @@ describe('serializer plugin', function () {
       server.inject('/rawTest', function (res) {
         expect(res.statusCode).to.eql(200);
         expect(res.result).to.eql('just data');
+        done();
+      });
+    });
+
+    it('should have access to the request via context', function (done) {
+      server.route({
+        method: 'GET',
+        path: '/contextTest',
+        handler: function (request, reply) {
+          reply(ContextModel.forge({ id: '1', name: 'hello' }));
+        }
+      });
+
+      server.inject({
+        method: 'GET',
+        url: '/contextTest',
+        headers: {
+          default: 'test'
+        }
+      }, function (res) {
+        expect(res.result).to.eql({
+          id: 1,
+          name: 'hello',
+          default: 'test',
+          object: 'contextModel'
+        });
         done();
       });
     });

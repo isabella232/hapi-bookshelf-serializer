@@ -61,6 +61,23 @@ module.exports = {
 };
 ```
 
+## Request Context
+
+The Hapi request object is provided via Joi's context. This allows you to conditionally serialize fields. For example, you can hide specific keys from non-admin users.
+
+```javascript
+// serializers/user.js
+var Joi = require('joi');
+
+module.exports = Joi.object().keys({
+  id: Joi.string().required(),
+  email: Joi.string().when('$auth.credentials.admin', {
+    is: true,
+    otherwise: Joi.strip()
+  })
+});
+```
+
 # Defining Models
 Models are defined just like all [Bookshelf.js](http://bookshelfjs.org/) models, except for one small addition. A ```serializer``` property is added which references a serializer registered with this plugin. The model is matched to a serializer via a string comparison. Below is an example for defining models that could be used with the serializers above.
 
