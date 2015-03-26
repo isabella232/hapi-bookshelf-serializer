@@ -146,6 +146,50 @@ describe('serializer plugin', function () {
       });
     });
 
+    it('should serialize a non-collection array', function (done) {
+      server.route({
+        method: 'GET',
+        path: '/arrayTest',
+        handler: function (request, reply) {
+          reply([
+            TestModel.forge({ id: 1, name: 'test1' }),
+            TestModel.forge({ id: 2, name: 'test2' }),
+            { a: 'b' }
+          ]);
+        }
+      });
+
+      server.inject('/arrayTest', function (res) {
+        expect(res.result).to.eql([
+          { id: 1, name: 'test1', object: 'model' },
+          { id: 2, name: 'test2', object: 'model' },
+          { a: 'b' }
+        ]);
+
+        done();
+      });
+    });
+
+    it('should fail to serialize bad non-collection array', function (done) {
+      server.route({
+        method: 'GET',
+        path: '/arrayTest',
+        handler: function (request, reply) {
+          reply([
+            TestModel.forge({ id: 1 }),
+            TestModel.forge({ id: 2, name: 'test2' }),
+            { a: 'b' }
+          ]);
+        }
+      });
+
+      server.inject('/arrayTest', function (res) {
+        expect(res.statusCode).to.eql(500);
+
+        done();
+      });
+    });
+
     it('should have access to the request via context', function (done) {
       server.route({
         method: 'GET',
