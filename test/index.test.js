@@ -21,6 +21,16 @@ var ContextModel  = bookshelf.Model.extend({
   serializer: 'contextModel'
 });
 
+var SerializeModel = bookshelf.Model.extend({
+  tableName: 'models',
+  serialize: function (request) {
+    return {
+      id: this.get('id'),
+      user: request.auth.credentials.id
+    };
+  }
+});
+
 describe('serializer plugin', function () {
   describe('initialization', function () {
     it('should fail to load with bad schema', function () {
@@ -37,7 +47,7 @@ describe('serializer plugin', function () {
     });
   });
 
-  describe('serializing', function () {
+  describe('serializer', function () {
     var server;
 
     beforeEach(function () {
@@ -58,7 +68,7 @@ describe('serializer plugin', function () {
       });
     });
 
-    it('should format a serialized model', function (done) {
+    it('should format a serialized model using serializer', function (done) {
       server.route({
         method: 'GET',
         path: '/modelTest',
@@ -74,7 +84,7 @@ describe('serializer plugin', function () {
       });
     });
 
-    it('should throw an error on bad model', function (done) {
+    it('should throw an error on bad model and serializer', function (done) {
       server.route({
         method: 'GET',
         path: '/modelTest',
@@ -89,7 +99,7 @@ describe('serializer plugin', function () {
       });
     });
 
-    it('should format a serialized collection', function (done) {
+    it('should format serialized collection with serializer', function (done) {
       server.route({
         method: 'GET',
         path: '/collectionTest',
@@ -111,7 +121,7 @@ describe('serializer plugin', function () {
       });
     });
 
-    it('should throw an error for bad collection', function (done) {
+    it('should throw error for bad collection and serializer', function (done) {
       server.route({
         method: 'GET',
         path: '/collectionTest',
@@ -215,5 +225,48 @@ describe('serializer plugin', function () {
         done();
       });
     });
+
+    it('should return formatted model w/ serialize function', function (done) {
+      server.route({
+        method: 'GET',
+        path: '/serializeTest',
+        handler: function (request, reply) {
+          reply(SerializeModel.forge({ id: 1 }));
+        }
+      });
+
+      server.inject({
+        method: 'GET',
+        url: '/serializeTest',
+        credentials: {
+          id: 2
+        }
+      }, function (res) {
+        expect(res.result).to.eql({
+          id: 1,
+          user: 2
+        });
+        done();
+      });
+    });
+
+    it('should return when no source provided', function (done) {
+      server.route({
+        method: 'GET',
+        path: '/noSource',
+        handler: function (request, reply) {
+          reply();
+        }
+      });
+
+      server.inject({
+        method: 'GET',
+        url: '/noSource'
+      }, function (res) {
+        expect(res.result).to.eql(null);
+        done();
+      });
+    });
+
   });
 });

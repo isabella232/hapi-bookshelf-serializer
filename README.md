@@ -53,7 +53,7 @@ module.exports = {
 
 // serializers/user.js
 var Joi  = require('joi');
-var Role = require('./role.js'); 
+var Role = require('./role.js');
 
 module.exports = {
   id: Joi.number().integer().required(),
@@ -102,4 +102,50 @@ module.exports = bookshelf.Model.extend({
   roles: this.belongsToMany(Role)
 });
 ```
+
+# Using `serialize` Instead of `serializer`
+The `serializer` provides most of the functionality that you would need for doing serialization. But we have run into cases where the logic via Joi is either too complex or not possible at all. As an alternative you can define a `serialize` function on the model that will be executed before the data is returned. All model properties can be accessed in the `serialize` function via `this.get()` and the function will be passed the current Hapi request as `request`.
+
+## Example
+```javascript
+// models/user.js
+var bookshelf = require('bookshelf')(require('knex')(config));
+
+module.exports = bookshelf.Model.extend({
+  tableName: 'users',
+  serialize: function (request) { // Hapi Request Object
+    return {
+      id: this.get('id'),
+      name: this.get('name'),
+      type: 'user'
+    };
+  }
+});
+```
+
+## Serializing Related Models
+Currently there is no support in this module for automatically serializing all related models so you will need to call the function manually.
+
+### Example
+```javascript
+// models/user.js
+var bookshelf = require('bookshelf')(require('knex')(config));
+
+module.exports = bookshelf.Model.extend({
+  tableName: 'users',
+  roles: this.belongsToMany(Role)
+  serialize: function (request) { // Hapi Request Object
+    return {
+      id: this.get('id'),
+      name: this.get('name'),
+      roles: this.related('roles').map(function (role) {
+        return role.serialize(request);
+      }),
+      type: 'user'
+    };
+  }
+});
+
+```
+
 This plugin pairs well with the [hapi-bookshelf-models](https://github.com/lob/hapi-bookshelf-models) plugin which makes registering models from a directory super easy.
