@@ -1,6 +1,6 @@
 {
   "name": "hapi-bookshelf-serializer",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Hapi Plugin to Serialize Bookshelf Models in Hapi Response",
   "main": "index.js",
   "scripts": {
