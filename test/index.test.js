@@ -1,3 +1,4 @@
+var Bluebird    = require('bluebird');
 var chai        = require('chai');
 var expect      = chai.expect;
 var Hapi        = require('hapi');
@@ -18,6 +19,31 @@ var SerializeModel = bookshelf.Model.extend({
 
 var SerializeModels = bookshelf.Collection.extend({
   model: SerializeModel
+});
+
+var PromiseModel = bookshelf.Model.extend({
+  tableName: 'promises',
+  serialize: function () {
+    return Bluebird.resolve({
+      id: this.get('id'),
+      promisified: true
+    });
+  }
+});
+
+var PromiseModels = bookshelf.Collection.extend({
+  model: PromiseModel
+});
+
+var ErrorModel = bookshelf.Model.extend({
+  tableName: 'errors',
+  serialize: function () {
+    return Bluebird.reject(new Error());
+  }
+});
+
+var ErrorModels = bookshelf.Collection.extend({
+  model: ErrorModel
 });
 
 describe('serializer plugin', function () {
@@ -80,6 +106,51 @@ describe('serializer plugin', function () {
       });
     });
 
+    it('should return formatted collection when serialize uses promise', function (done) {
+      server.route({
+        method: 'GET',
+        path: '/serializeTest',
+        handler: function (request, reply) {
+          reply(PromiseModels.forge([
+            { id: 1 },
+            { id: 2 }
+          ]));
+        }
+      });
+
+      server.inject({
+        method: 'GET',
+        url: '/serializeTest'
+      }, function (res) {
+        expect(res.result).to.eql([
+          { id: 1, promisified: true },
+          { id: 2, promisified: true }
+        ]);
+        done();
+      });
+    });
+
+    it('should handle a rejection during serialize', function (done) {
+      server.route({
+        method: 'GET',
+        path: '/serializeTest',
+        handler: function (request, reply) {
+          reply(ErrorModels.forge([
+            { id: 1 },
+            { id: 2 }
+          ]));
+        }
+      });
+
+      server.inject({
+        method: 'GET',
+        url: '/serializeTest'
+      }, function (res) {
+        expect(res.statusCode).to.eql(500);
+        done();
+      });
+    });
+
     it('should return formatted array of models', function (done) {
       server.route({
         method: 'GET',
@@ -107,6 +178,51 @@ describe('serializer plugin', function () {
       });
     });
 
+    it('should handle formatting an array of models with promise', function (done) {
+      server.route({
+        method: 'GET',
+        path: '/serializeTest',
+        handler: function (request, reply) {
+          reply([
+            PromiseModel.forge({ id: 1 }),
+            PromiseModel.forge({ id: 2 })
+          ]);
+        }
+      });
+
+      server.inject({
+        method: 'GET',
+        url: '/serializeTest'
+      }, function (res) {
+        expect(res.result).to.eql([
+          { id: 1, promisified: true },
+          { id: 2, promisified: true }
+        ]);
+        done();
+      });
+    });
+
+    it('should handle a rejection formatting an array of models', function (done) {
+      server.route({
+        method: 'GET',
+        path: '/serializeTest',
+        handler: function (request, reply) {
+          reply([
+            ErrorModel.forge({ id: 1 }),
+            ErrorModel.forge({ id: 2 })
+          ]);
+        }
+      });
+
+      server.inject({
+        method: 'GET',
+        url: '/serializeTest'
+      }, function (res) {
+        expect(res.statusCode).to.eql(500);
+        done();
+      });
+    });
+
     it('should return formatted model', function (done) {
       server.route({
         method: 'GET',
@@ -127,6 +243,45 @@ describe('serializer plugin', function () {
           id: 1,
           user: 2
         });
+        done();
+      });
+    });
+
+    it('should support a serialize method returning a promise', function (done) {
+      server.route({
+        method: 'GET',
+        path: '/serializeTest',
+        handler: function (request, reply) {
+          reply(PromiseModel.forge({ id: 1 }));
+        }
+      });
+
+      server.inject({
+        method: 'GET',
+        url: '/serializeTest'
+      }, function (res) {
+        expect(res.result).to.eql({
+          id: 1,
+          promisified: true
+        });
+        done();
+      });
+    });
+
+    it('should handle a rejection serializing one model', function (done) {
+      server.route({
+        method: 'GET',
+        path: '/serializeTest',
+        handler: function (request, reply) {
+          reply(ErrorModel.forge({ id: 1 }));
+        }
+      });
+
+      server.inject({
+        method: 'GET',
+        url: '/serializeTest'
+      }, function (res) {
+        expect(res.statusCode).to.eql(500);
         done();
       });
     });

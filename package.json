@@ -22,7 +22,10 @@
     "url": "https://github.com/lob/hapi-bookshelf-serializer/issues"
   },
   "homepage": "https://github.com/lob/hapi-bookshelf-serializer",
-  "dependencies": {},
+  "dependencies": {
+    "bluebird": "^2.9.34",
+    "boom": "^2.8.0"
+  },
   "devDependencies": {
     "bookshelf": "^0.7.9",
     "chai": "^1.10.0",
