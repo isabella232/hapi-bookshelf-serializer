@@ -1,25 +1,10 @@
 var chai        = require('chai');
 var expect      = chai.expect;
 var Hapi        = require('hapi');
-var path        = require('path');
 var bookshelf   = require('bookshelf')(require('knex')({
                   client: 'sqlite3',
                   filename: './test.sqlite3'
                 }));
-
-var TestModel   = bookshelf.Model.extend({
-  tableName: 'models',
-  serializer: 'model'
-});
-
-var TestModels  = bookshelf.Collection.extend({
-  model: TestModel
-});
-
-var ContextModel  = bookshelf.Model.extend({
-  tableName: 'contextModels',
-  serializer: 'contextModel'
-});
 
 var SerializeModel = bookshelf.Model.extend({
   tableName: 'models',
@@ -31,22 +16,11 @@ var SerializeModel = bookshelf.Model.extend({
   }
 });
 
+var SerializeModels = bookshelf.Collection.extend({
+  model: SerializeModel
+});
+
 describe('serializer plugin', function () {
-  describe('initialization', function () {
-    it('should fail to load with bad schema', function () {
-      var server = new Hapi.Server();
-
-      server.register([
-        {
-          register: require('../lib/'),
-          options: {}
-        }
-      ], function (err) {
-        expect(err).to.be.instanceof(Error);
-      });
-    });
-  });
-
   describe('serializer', function () {
     var server;
 
@@ -55,88 +29,11 @@ describe('serializer plugin', function () {
       server.connection({ port: 80 });
 
       server.register([
-        {
-          register: require('../lib/'),
-          options: {
-            directory: path.join(__dirname + '/serializers')
-          }
-        }
+        require('../lib/'),
       ], function (err) {
         if (err) {
           throw err;
         }
-      });
-    });
-
-    it('should format a serialized model using serializer', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/modelTest',
-        handler: function (request, reply) {
-          reply(TestModel.forge({ id: '1', name: 'hello' }));
-        }
-      });
-
-      server.inject('/modelTest', function (res) {
-        expect(res.result).to.eql({ id: 1, name: 'hello', object: 'model' });
-
-        done();
-      });
-    });
-
-    it('should throw an error on bad model and serializer', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/modelTest',
-        handler: function (request, reply) {
-          reply(TestModel.forge({ id: '1' }));
-        }
-      });
-
-      server.inject('/modelTest', function (res) {
-        expect(res.statusCode).to.eql(500);
-        done();
-      });
-    });
-
-    it('should format serialized collection with serializer', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/collectionTest',
-        handler: function (request, reply) {
-          reply(TestModels.forge([
-            { id: 1, name: 'test1' },
-            { id: 2, name: 'test2' }
-          ]));
-        }
-      });
-
-      server.inject('/collectionTest', function (res) {
-        expect(res.result).to.eql([
-          { id: 1, name: 'test1', object: 'model' },
-          { id: 2, name: 'test2', object: 'model' }
-        ]);
-
-        done();
-      });
-    });
-
-    it('should throw error for bad collection and serializer', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/collectionTest',
-        handler: function (request, reply) {
-          reply(TestModels.forge([
-            { id: 1 },
-            { id: 2 }
-          ]));
-        }
-      });
-
-      server.inject('/collectionTest', function (res) {
-        expect(res.statusCode).to.eql(500);
-
-        done();
       });
     });
 
@@ -156,77 +53,61 @@ describe('serializer plugin', function () {
       });
     });
 
-    it('should serialize a non-collection array', function (done) {
+    it('should return formatted collection', function (done) {
       server.route({
         method: 'GET',
-        path: '/arrayTest',
+        path: '/serializeTest',
         handler: function (request, reply) {
-          reply([
-            TestModel.forge({ id: 1, name: 'test1' }),
-            TestModel.forge({ id: 2, name: 'test2' }),
-            { a: 'b' }
-          ]);
-        }
-      });
-
-      server.inject('/arrayTest', function (res) {
-        expect(res.result).to.eql([
-          { id: 1, name: 'test1', object: 'model' },
-          { id: 2, name: 'test2', object: 'model' },
-          { a: 'b' }
-        ]);
-
-        done();
-      });
-    });
-
-    it('should fail to serialize bad non-collection array', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/arrayTest',
-        handler: function (request, reply) {
-          reply([
-            TestModel.forge({ id: 1 }),
-            TestModel.forge({ id: 2, name: 'test2' }),
-            { a: 'b' }
-          ]);
-        }
-      });
-
-      server.inject('/arrayTest', function (res) {
-        expect(res.statusCode).to.eql(500);
-
-        done();
-      });
-    });
-
-    it('should have access to the request via context', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/contextTest',
-        handler: function (request, reply) {
-          reply(ContextModel.forge({ id: '1', name: 'hello' }));
+          reply(SerializeModels.forge([
+            { id: 1 },
+            { id: 2 }
+          ]));
         }
       });
 
       server.inject({
         method: 'GET',
-        url: '/contextTest',
-        headers: {
-          default: 'test'
+        url: '/serializeTest',
+        credentials: {
+          id: 2
         }
       }, function (res) {
-        expect(res.result).to.eql({
-          id: 1,
-          name: 'hello',
-          default: 'test',
-          object: 'contextModel'
-        });
+        expect(res.result).to.eql([
+          { id: 1, user: 2 },
+          { id: 2, user: 2 }
+        ]);
         done();
       });
     });
 
-    it('should return formatted model w/ serialize function', function (done) {
+    it('should return formatted array of models', function (done) {
+      server.route({
+        method: 'GET',
+        path: '/serializeTest',
+        handler: function (request, reply) {
+          reply([
+            SerializeModel.forge({ id: 1 }),
+            SerializeModel.forge({ id: 2 })
+          ]);
+        }
+      });
+
+      server.inject({
+        method: 'GET',
+        url: '/serializeTest',
+        credentials: {
+          id: 2
+        }
+      }, function (res) {
+        expect(res.result).to.eql([
+          { id: 1, user: 2 },
+          { id: 2, user: 2 }
+        ]);
+        done();
+      });
+    });
+
+    it('should return formatted model', function (done) {
       server.route({
         method: 'GET',
         path: '/serializeTest',
