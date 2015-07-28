@@ -19,7 +19,7 @@ server.register([
 ```
 
 # Defining Models
-Models are defined just like all [Bookshelf.js](http://bookshelfjs.org/) models, except for one small addition. A `serialize` function is added with the following signature `function (request) { }`. All model properties can be accessed in the `serialize` function via `this.get()` and the function will be passed the current Hapi request as `request`.
+Models are defined just like all [Bookshelf.js](http://bookshelfjs.org/) models, except for one small addition. A `serialize` function is added with the following signature `function (request) { }`. All model properties can be accessed in the `serialize` function via `this.get()` and the function will be passed the current Hapi request as `request`. The `serialize` function can either return a static value or a `Promise`.
 
 ## Serializing Related Models
 Currently there is no support in this module for automatically serializing all related models so you will need to call the function manually.
