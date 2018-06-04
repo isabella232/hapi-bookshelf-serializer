@@ -1,13 +1,18 @@
-var Bluebird    = require('bluebird');
-var chai        = require('chai');
-var expect      = chai.expect;
-var Hapi        = require('hapi');
-var bookshelf   = require('bookshelf')(require('knex')({
-                  client: 'sqlite3',
-                  filename: './test.sqlite3'
-                }));
+'use strict';
 
-var SerializeModel = bookshelf.Model.extend({
+const Bluebird  = require('bluebird');
+const bookshelf = require('bookshelf')(require('knex')({
+  client: 'sqlite3',
+  filename: './test.sqlite3'
+}));
+const chai = require('chai');
+const Hapi = require('hapi');
+const Lab  = require('lab');
+
+const expect = chai.expect;
+const { beforeEach, describe, it } = exports.lab = Lab.script();
+
+const SerializeModel = bookshelf.Model.extend({
   tableName: 'models',
   serialize: function (request) {
     return {
@@ -17,11 +22,11 @@ var SerializeModel = bookshelf.Model.extend({
   }
 });
 
-var SerializeModels = bookshelf.Collection.extend({
+const SerializeModels = bookshelf.Collection.extend({
   model: SerializeModel
 });
 
-var PromiseModel = bookshelf.Model.extend({
+const PromiseModel = bookshelf.Model.extend({
   tableName: 'promises',
   serialize: function () {
     return Bluebird.resolve({
@@ -31,278 +36,200 @@ var PromiseModel = bookshelf.Model.extend({
   }
 });
 
-var PromiseModels = bookshelf.Collection.extend({
+const PromiseModels = bookshelf.Collection.extend({
   model: PromiseModel
 });
 
-var ErrorModel = bookshelf.Model.extend({
+const ErrorModel = bookshelf.Model.extend({
   tableName: 'errors',
   serialize: function () {
     return Bluebird.reject(new Error());
   }
 });
 
-var ErrorModels = bookshelf.Collection.extend({
+const ErrorModels = bookshelf.Collection.extend({
   model: ErrorModel
 });
 
-describe('serializer plugin', function () {
-  describe('serializer', function () {
-    var server;
+describe('serializer plugin', () => {
 
-    beforeEach(function () {
-      server = new Hapi.Server({ debug: false });
-      server.connection({ port: 80 });
+  let server;
 
-      server.register([
-        require('../lib/'),
-      ], function (err) {
-        if (err) {
-          throw err;
-        }
-      });
-    });
+  beforeEach(async () => {
+    server = new Hapi.Server({ debug: false });
 
-    it('should return data that is not serialized', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/rawTest',
-        handler: function (request, reply) {
-          reply('just data');
-        }
-      });
-
-      server.inject('/rawTest', function (res) {
-        expect(res.statusCode).to.eql(200);
-        expect(res.result).to.eql('just data');
-        done();
-      });
-    });
-
-    it('should return formatted collection', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/serializeTest',
-        handler: function (request, reply) {
-          reply(SerializeModels.forge([
-            { id: 1 },
-            { id: 2 }
-          ]));
-        }
-      });
-
-      server.inject({
-        method: 'GET',
-        url: '/serializeTest',
-        credentials: {
-          id: 2
-        }
-      }, function (res) {
-        expect(res.result).to.eql([
-          { id: 1, user: 2 },
-          { id: 2, user: 2 }
-        ]);
-        done();
-      });
-    });
-
-    it('should return formatted collection when serialize uses promise', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/serializeTest',
-        handler: function (request, reply) {
-          reply(PromiseModels.forge([
-            { id: 1 },
-            { id: 2 }
-          ]));
-        }
-      });
-
-      server.inject({
-        method: 'GET',
-        url: '/serializeTest'
-      }, function (res) {
-        expect(res.result).to.eql([
-          { id: 1, promisified: true },
-          { id: 2, promisified: true }
-        ]);
-        done();
-      });
-    });
-
-    it('should handle a rejection during serialize', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/serializeTest',
-        handler: function (request, reply) {
-          reply(ErrorModels.forge([
-            { id: 1 },
-            { id: 2 }
-          ]));
-        }
-      });
-
-      server.inject({
-        method: 'GET',
-        url: '/serializeTest'
-      }, function (res) {
-        expect(res.statusCode).to.eql(500);
-        done();
-      });
-    });
-
-    it('should return formatted array of models', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/serializeTest',
-        handler: function (request, reply) {
-          reply([
-            SerializeModel.forge({ id: 1 }),
-            SerializeModel.forge({ id: 2 })
-          ]);
-        }
-      });
-
-      server.inject({
-        method: 'GET',
-        url: '/serializeTest',
-        credentials: {
-          id: 2
-        }
-      }, function (res) {
-        expect(res.result).to.eql([
-          { id: 1, user: 2 },
-          { id: 2, user: 2 }
-        ]);
-        done();
-      });
-    });
-
-    it('should handle formatting an array of models with promise', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/serializeTest',
-        handler: function (request, reply) {
-          reply([
-            PromiseModel.forge({ id: 1 }),
-            PromiseModel.forge({ id: 2 })
-          ]);
-        }
-      });
-
-      server.inject({
-        method: 'GET',
-        url: '/serializeTest'
-      }, function (res) {
-        expect(res.result).to.eql([
-          { id: 1, promisified: true },
-          { id: 2, promisified: true }
-        ]);
-        done();
-      });
-    });
-
-    it('should handle a rejection formatting an array of models', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/serializeTest',
-        handler: function (request, reply) {
-          reply([
-            ErrorModel.forge({ id: 1 }),
-            ErrorModel.forge({ id: 2 })
-          ]);
-        }
-      });
-
-      server.inject({
-        method: 'GET',
-        url: '/serializeTest'
-      }, function (res) {
-        expect(res.statusCode).to.eql(500);
-        done();
-      });
-    });
-
-    it('should return formatted model', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/serializeTest',
-        handler: function (request, reply) {
-          reply(SerializeModel.forge({ id: 1 }));
-        }
-      });
-
-      server.inject({
-        method: 'GET',
-        url: '/serializeTest',
-        credentials: {
-          id: 2
-        }
-      }, function (res) {
-        expect(res.result).to.eql({
-          id: 1,
-          user: 2
-        });
-        done();
-      });
-    });
-
-    it('should support a serialize method returning a promise', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/serializeTest',
-        handler: function (request, reply) {
-          reply(PromiseModel.forge({ id: 1 }));
-        }
-      });
-
-      server.inject({
-        method: 'GET',
-        url: '/serializeTest'
-      }, function (res) {
-        expect(res.result).to.eql({
-          id: 1,
-          promisified: true
-        });
-        done();
-      });
-    });
-
-    it('should handle a rejection serializing one model', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/serializeTest',
-        handler: function (request, reply) {
-          reply(ErrorModel.forge({ id: 1 }));
-        }
-      });
-
-      server.inject({
-        method: 'GET',
-        url: '/serializeTest'
-      }, function (res) {
-        expect(res.statusCode).to.eql(500);
-        done();
-      });
-    });
-
-    it('should return when no source provided', function (done) {
-      server.route({
-        method: 'GET',
-        path: '/noSource',
-        handler: function (request, reply) {
-          reply();
-        }
-      });
-
-      server.inject({
-        method: 'GET',
-        url: '/noSource'
-      }, function (res) {
-        expect(res.result).to.eql(null);
-        done();
-      });
-    });
-
+    await server.register([
+      require('../lib/')
+    ]);
   });
+
+  it('should return data that is not serialized', async () => {
+    server.route({
+      method: 'GET',
+      path: '/rawTest',
+      handler: () => 'just data'
+    });
+    const res = await server.inject('/rawTest');
+
+    expect(res.statusCode).to.eql(200);
+    expect(res.result).to.eql('just data');
+  });
+
+  it('should return formatted collection', async () => {
+    server.route({
+      method: 'GET',
+      path: '/serializeTest',
+      handler: () => SerializeModels.forge([{ id: 1 }, { id: 2 }])
+    });
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/serializeTest',
+      credentials: { id: 2 }
+    });
+
+    expect(res.result).to.eql([{ id: 1, user: 2 }, { id: 2, user: 2 }]);
+  });
+
+  it('should return formatted collection when serialize uses promise', async () => {
+    server.route({
+      method: 'GET',
+      path: '/serializeTest',
+      handler: () => PromiseModels.forge([{ id: 1 }, { id: 2 }])
+    });
+
+    const res = await server.inject('/serializeTest');
+
+    expect(res.result).to.eql([
+      { id: 1, promisified: true },
+      { id: 2, promisified: true }
+    ]);
+  });
+
+  it('should handle a rejection during serialize', async () => {
+    server.route({
+      method: 'GET',
+      path: '/serializeTest',
+      handler: () => ErrorModels.forge([{ id: 1 }, { id: 2 }])
+    });
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/serializeTest'
+    });
+
+    expect(res.statusCode).to.eql(500);
+  });
+
+  it('should return formatted array of models', async () => {
+    server.route({
+      method: 'GET',
+      path: '/serializeTest',
+      handler: () => [
+        SerializeModel.forge({ id: 1 }),
+        SerializeModel.forge({ id: 2 })
+      ]
+    });
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/serializeTest',
+      credentials: { id: 2 }
+    });
+
+    expect(res.result).to.eql([
+      { id: 1, user: 2 },
+      { id: 2, user: 2 }
+    ]);
+  });
+
+  it('should handle formatting an array of models with promise', async () => {
+    server.route({
+      method: 'GET',
+      path: '/serializeTest',
+      handler: () => [
+        PromiseModel.forge({ id: 1 }),
+        PromiseModel.forge({ id: 2 })
+      ]
+    });
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/serializeTest',
+      credentials: { id: 2 }
+    });
+
+    expect(res.result).to.eql([
+      { id: 1, promisified: true },
+      { id: 2, promisified: true }
+    ]);
+  });
+
+  it('should handle a rejection formatting an array of models', async () => {
+    server.route({
+      method: 'GET',
+      path: '/serializeTest',
+      handler: () => [
+        ErrorModel.forge({ id: 1 }),
+        ErrorModel.forge({ id: 2 })
+      ]
+    });
+
+    const res = await server.inject('/serializeTest');
+
+    expect(res.statusCode).to.eql(500);
+  });
+
+  it('should return formatted model', async () => {
+    server.route({
+      method: 'GET',
+      path: '/serializeTest',
+      handler: () => SerializeModel.forge({ id: 1 })
+    });
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/serializeTest',
+      credentials: { id: 2 }
+    });
+
+    expect(res.result).to.eql({ id: 1, user: 2 });
+  });
+
+  it('should support a serialize method returning a promise', async () => {
+    server.route({
+      method: 'GET',
+      path: '/serializeTest',
+      handler: () => PromiseModel.forge({ id: 1 })
+    });
+
+    const res = await server.inject('/serializeTest');
+
+    expect(res.result).to.eql({ id: 1, promisified: true });
+  });
+
+  it('should handle a rejection serializing one model', async () => {
+    server.route({
+      method: 'GET',
+      path: '/serializeTest',
+      handler: () => ErrorModel.forge({ id: 1 })
+    });
+
+    const res = await server.inject('/serializeTest');
+
+    expect(res.statusCode).to.eql(500);
+  });
+
+  it('should return when no source provided', async () => {
+    server.route({
+      method: 'GET',
+      path: '/noSource',
+      handler: () => null
+    });
+
+    const res = await server.inject('/noSource');
+
+    expect(res.result).to.eql(null);
+  });
+
 });
