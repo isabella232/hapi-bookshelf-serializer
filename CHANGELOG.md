@@ -1,3 +1,13 @@
+#### 3.0.1 (2018-07-26)
+
+##### New Features
+
+* **package:**  add generate-changelog ([600e3aa3](https://github.com/lob/hapi-bookshelf-serializer/commit/600e3aa37ee6981d393474049f94c0c2d5789c51))
+
+##### Bug Fixes
+
+* **version:**  update version and export module ([f7abe51b](https://github.com/lob/hapi-bookshelf-serializer/commit/f7abe51bcfba1b11c7ffa962a8c93053d1f6eab5))
+
 ## 3.0.0 (2018-07-12)
 
 ##### New Features
