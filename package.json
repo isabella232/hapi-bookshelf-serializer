@@ -40,7 +40,7 @@
     "generate-changelog": "^1.7.1",
     "hapi": "^17.5.2",
     "istanbul": "0.4.5",
-    "knex": "^0.15.0",
+    "knex": "^0.19.5",
     "lab": "^15.5.0",
     "mocha": "^5.2.0",
     "sqlite3": "^4.0.1"
